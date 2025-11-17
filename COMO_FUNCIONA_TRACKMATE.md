@@ -1,12 +1,10 @@
-# Cómo Funciona TrackMate: Procesamiento de Video y Seguimiento de Objetos
+# Cómo Funciona TrackMate:
 
-## Resumen
-
-**Sí, TrackMate está diseñado para trabajar con videos** - específicamente videos de microscopía time-lapse y secuencias de imágenes. Procesa videos fotograma a fotograma para detectar objetos (como células, partículas o núcleos) y luego enlaza estas detecciones a lo largo del tiempo para crear trayectorias que muestran cómo se mueven y comportan los objetos.
+**TrackMate está diseñado para trabajar con videos** - específicamente videos de microscopía time-lapse y secuencias de imágenes. Procesa videos fotograma a fotograma para detectar objetos (como células, partículas o núcleos) y luego enlaza estas detecciones a lo largo del tiempo para crear trayectorias que muestran cómo se mueven y comportan los objetos.
 
 TrackMate sigue un **pipeline de dos etapas**:
 1. **Detección (Segmentación)** - Encontrar objetos en cada fotograma independientemente
-2. **Seguimiento (Linking)** - Conectar el mismo objeto a través de múltiples fotogramas
+2. **Seguimiento (Tracking)** - Conectar el mismo objeto a través de múltiples fotogramas
 
 ## ¿Qué Tipo de Videos/Imágenes Acepta TrackMate?
 
@@ -49,7 +47,7 @@ La detección ocurre **independientemente para cada fotograma**. TrackMate ofrec
 ### Algoritmo de Detección 1: Detector DoG (Diferencia de Gaussianas)
 
 **Cómo funciona:**
-1. Aplicar dos filtros de desenfoque Gaussiano con radios ligeramente diferentes (σ₁ y σ₂)
+1. Aplicar dos filtros Gaussianos con radios ligeramente diferentes (σ₁ y σ₂)
 2. Restar las dos imágenes desenfocadas
 3. Esto resalta estructuras tipo blob a una escala de tamaño específica
 4. Encontrar máximos locales (puntos brillantes) por encima de un umbral
@@ -57,13 +55,53 @@ La detección ocurre **independientemente para cada fotograma**. TrackMate ofrec
 
 **Enfoque matemático:**
 ```
-DoG = DesenfoquGaussiano(imagen, σ₁) - DesenfoquGaussiano(imagen, σ₂)
+DoG = FiltroGaussiano(imagen, σ₁) - FiltroGaussiano(imagen, σ₂)
 donde σ₁ = radio/√ndims × 0.9 y σ₂ = radio/√ndims × 1.1
 ```
+
+**Nota:** las dos constantes son factores de escala.
 
 **Mejor para:** Puntos pequeños y brillantes (< 5 píxeles de radio)
 **Velocidad:** Detector más rápido
 **Configuraciones:** Radio estimado del punto, umbral de calidad
+
+#### Detalles de Implementación del Filtro Gaussiano
+
+**Fórmula matemática del filtro Gaussiano:**
+
+El filtro Gaussiano se basa en la función Gaussiana 2D:
+
+```
+G(x, y) = (1 / 2πσ²) × e^(-(x² + y²) / 2σ²)
+```
+
+Donde:
+- `σ` (sigma) = desviación estándar que controla el ancho del desenfoque
+- `x, y` = coordenadas relativas al centro del kernel
+
+**Implementación optimizada con convolución separable:**
+
+TrackMate NO aplica el kernel 2D/3D directamente. En su lugar, usa **convolución separable** a través de la biblioteca ImgLib2's `Gauss3.gauss()`, que es mucho más eficiente:
+
+**Propiedad de separabilidad:**
+```
+Gaussiana 2D = Gaussiana 1D (horizontal) × Gaussiana 1D (vertical)
+
+G(x, y) = G(x) × G(y)
+donde G(x) = e^(-x² / 2σ²)
+```
+
+**Ventajas de la convolución separable:**
+
+| Dimensión | Convolución Directa | Convolución Separable | Reducción |
+|-----------|---------------------|----------------------|-----------|
+| 2D | O(n²) multiplicaciones/píxel | O(2n) multiplicaciones/píxel | ~50% para n=5 |
+| 3D | O(n³) multiplicaciones/píxel | O(3n) multiplicaciones/píxel | ~95% para n=10 |
+
+**Ejemplo concreto:**
+- Kernel 5×5 directo: 25 multiplicaciones por píxel
+- Separable (5×1 + 1×5): 10 multiplicaciones por píxel
+
 
 ### Algoritmo de Detección 2: Detector LoG (Laplaciano de Gaussiana)
 
