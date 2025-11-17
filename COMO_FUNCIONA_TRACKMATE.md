@@ -133,8 +133,8 @@ LoG = ∇²(G * I) donde G es Gaussiana, I es imagen
 |---------|-----|-----|
 | **Implementación** | Dos desenfoque Gaussiano + sustracción | Kernel LoG + convolución |
 | **Cálculo** | Espacio directo (separable) | Espacio de Fourier (FFT) |
-| **Velocidad para σ pequeño** | ⚡ Más rápido | Moderado |
-| **Velocidad para σ grande** | Moderado | ⚡ Más rápido |
+| **Velocidad para σ pequeño** | Más rápido | Moderado |
+| **Velocidad para σ grande** | Moderado |  Más rápido |
 | **Precisión matemática** | ~Aproximación del LoG | Exacto |
 | **Uso de memoria** | Dos imágenes temporales | Una imagen FFT compleja |
 | **Mejor para** | Puntos pequeños (< 5px) | Puntos medianos/grandes |
