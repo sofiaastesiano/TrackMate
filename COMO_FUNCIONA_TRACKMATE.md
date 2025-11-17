@@ -102,7 +102,6 @@ donde G(x) = e^(-x² / 2σ²)
 - Kernel 5×5 directo: 25 multiplicaciones por píxel
 - Separable (5×1 + 1×5): 10 multiplicaciones por píxel
 
-
 ### Algoritmo de Detección 2: Detector LoG (Laplaciano de Gaussiana)
 
 **Cómo funciona:**
@@ -120,6 +119,26 @@ LoG = ∇²(G * I) donde G es Gaussiana, I es imagen
 **Mejor para:** Detección de blobs de propósito general, puntos de tamaño medio
 **Velocidad:** Moderada (más lenta que DoG, usa FFT)
 **Configuraciones:** Radio estimado del punto, umbral de calidad
+
+**Propiedades del filtro LoG:**
+**Invariante a escala**: El kernel se ajusta automáticamente al tamaño del blob (σ)
+**Selectivo de tamaño**: Respuesta máxima para blobs de radio ≈ σ√2
+**Supresión de ruido**: El componente Gaussiano suaviza el ruido de alta frecuencia
+**Respuesta simétrica**: Igual respuesta en todas las orientaciones
+**Sensible a contraste**: Detecta transiciones de intensidad (bordes y blobs)
+
+**Comparación DoG vs LoG:**
+
+| Aspecto | DoG | LoG |
+|---------|-----|-----|
+| **Implementación** | Dos desenfoque Gaussiano + sustracción | Kernel LoG + convolución |
+| **Cálculo** | Espacio directo (separable) | Espacio de Fourier (FFT) |
+| **Velocidad para σ pequeño** | ⚡ Más rápido | Moderado |
+| **Velocidad para σ grande** | Moderado | ⚡ Más rápido |
+| **Precisión matemática** | ~Aproximación del LoG | Exacto |
+| **Uso de memoria** | Dos imágenes temporales | Una imagen FFT compleja |
+| **Mejor para** | Puntos pequeños (< 5px) | Puntos medianos/grandes |
+
 
 ### Algoritmo de Detección 3: Detector Hessiano
 
@@ -139,15 +158,55 @@ H = [[∂²I/∂x², ∂²I/∂x∂y  ]
 **Velocidad:** Más lento, más intensivo computacionalmente
 **Configuraciones:** Radio en XY, radio en Z, umbral de calidad
 
+**Fundamento matemático:**
+
+La **matriz Hessiana** es la matriz de segundas derivadas parciales de una función (en este caso, la imagen):
+
+**Matriz Hessiana 2D:**
+```
+H = [[∂²I/∂x²,   ∂²I/∂x∂y  ]
+     [∂²I/∂x∂y,  ∂²I/∂y²  ]]
+```
+
+**Matriz Hessiana 3D:**
+```
+H = [[∂²I/∂x²,   ∂²I/∂x∂y,  ∂²I/∂x∂z]
+     [∂²I/∂x∂y,  ∂²I/∂y²,   ∂²I/∂y∂z]
+     [∂²I/∂x∂z,  ∂²I/∂y∂z,  ∂²I/∂z² ]]
+```
+
+**Propiedad clave:** El determinante de la Hessiana indica la curvatura local de la imagen:
+- **det(H) > 0**: Máximo o mínimo local (blob)
+- **det(H) < 0**: Punto de silla (borde)
+- **det(H) ≈ 0**: Región plana
+
+
+**Ventajas del detector Hessiano:**
+
+**Mejor eliminación de respuesta de bordes** que LoG (Mikolajczyk et al., 2005)
+**Detección anisotrópica**: Radios diferentes en XY y Z para blobs elípticos
+**Adecuado para imágenes con bordes fuertes**: No confunde bordes con blobs
+**Invariante a rotación**: Respuesta igual en todas las orientaciones
+**Normalización por escala**: σ-normalización para detectar múltiples tamaños
+**Multi-hilo optimizado**: Procesamiento paralelo de píxeles
+
+**Desventajas:**
+
+**Más lento** que DoG y LoG (más cálculos)
+**Mayor uso de memoria**: Almacena matriz Hessiana completa
+**Sensible a ruido**: Usa segundas derivadas (más ruidosas que primeras)
+
+
+
 ### Flujo de Trabajo Común de Detección (Todos los Algoritmos)
 
 ```
 Para cada fotograma de tiempo:
   1. Opcional: Aplicar filtro de mediana para reducir ruido
-  2. Aplicar filtro de espacio-escala (DoG/LoG/Hessiano) ajustado al tamaño esperado del objeto
+  2. Aplicar metodo de detección (DoG/LoG/Hessiano) ajustado al tamaño esperado del objeto
   3. Encontrar máximos locales en la imagen filtrada
   4. Umbralizar por calidad (brillo/respuesta)
-  5. Opcional: Localización sub-píxel usando ajuste cuadrático
+  5. Opcional: Localización sub-píxel 
   6. Crear objetos Spot con:
      - Posición (X, Y, Z en unidades calibradas)
      - Radio
