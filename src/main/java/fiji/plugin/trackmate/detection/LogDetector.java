@@ -29,14 +29,14 @@ import fiji.plugin.trackmate.util.Threads;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.algorithm.MultiThreaded;
-import net.imglib2.algorithm.fft2.FFTConvolution;
+// import net.imglib2.algorithm.fft2.FFTConvolution;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.complex.ComplexFloatType;
+// import net.imglib2.type.numeric.complex.ComplexFloatType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
+// import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -147,22 +147,28 @@ public class LogDetector< T extends RealType< T > & NativeType< T > > implements
 				ndims--;
 
 		final Img< FloatType > kernel = DetectionUtils.createLoGKernel( radius, ndims, calibration );
-		final FFTConvolution< FloatType > fftconv = new FFTConvolution<>( floatImg, kernel );
 
-		/*
-		 * Determine the right img factory for FFT calculation.
-		 */
-		Interval fftinterval = floatImg;
-		for ( int d = 0; d < kernel.numDimensions(); d++ )
-			fftinterval = Intervals.expand( fftinterval, kernel.dimension( d ), d );
-		final ImgFactory< ComplexFloatType > imgFactory = Util.getArrayOrCellImgFactory( fftinterval, new ComplexFloatType() );
-		fftconv.setFFTImgFactory( imgFactory );
+		// FFT Convolution (commented out)
+		// final FFTConvolution< FloatType > fftconv = new FFTConvolution<>( floatImg, kernel );
+		//
+		// /*
+		//  * Determine the right img factory for FFT calculation.
+		//  */
+		// Interval fftinterval = floatImg;
+		// for ( int d = 0; d < kernel.numDimensions(); d++ )
+		// 	fftinterval = Intervals.expand( fftinterval, kernel.dimension( d ), d );
+		// final ImgFactory< ComplexFloatType > imgFactory = Util.getArrayOrCellImgFactory( fftinterval, new ComplexFloatType() );
+		// fftconv.setFFTImgFactory( imgFactory );
+		//
+		// final ExecutorService service = Threads.newFixedThreadPool( numThreads );
+		// fftconv.setExecutorService( service );
+		//
+		// fftconv.convolve();
+		// service.shutdown();
 
-		final ExecutorService service = Threads.newFixedThreadPool( numThreads );
-		fftconv.setExecutorService( service );
-
-		fftconv.convolve();
-		service.shutdown();
+		// Direct Convolution (new implementation)
+		final DirectConvolution< FloatType > directConv = new DirectConvolution<>( floatImg, kernel );
+		directConv.convolve();
 
 		final long[] minopposite = new long[ interval.numDimensions() ];
 		interval.min( minopposite );
